@@ -1,15 +1,10 @@
-/*  Author: Steve Gunn
- * Licence: This work is licensed under the Creative Commons Attribution License. 
- *           View this license at http://creativecommons.org/about/licenses/
- *   Notes: F_CPU must be defined to match the clock frequency
- */
 #include <avr/io.h>
 #include <util/delay.h>
 #include "debug.h"
 
 void init_adc(void)
 {
-	DDRA &= ~_BV(PD0);
+	DDRA &= ~_BV(PA0);
 	//       Enable ADC |   /64 clock prescaler
 	ADCSRA |= _BV(ADEN) | _BV(ADPS2) | _BV(ADPS1);
 	// Select PA3 as ADC single ended input channel
