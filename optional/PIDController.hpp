@@ -11,6 +11,10 @@ class PIDController {
 
     void reset(); // Method to reset the PID controller state
 
+    double getKp() const { return m_kp; }
+    double getKi() const { return m_ki; }
+    double getKd() const { return m_kd; }
+
     private:
     double m_kp; // Proportional gain
     double m_ki; // Integral gain
