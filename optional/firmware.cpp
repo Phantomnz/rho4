@@ -1,14 +1,14 @@
 #include "config.hpp"
 #include "ADCReader.hpp"
 #include "PIDController.hpp"
-#include "SerialPort.hpp"
+#include "AVRSerial.hpp"
 #include "PWMTimer.hpp"
 #include <util/delay.h>
 
 PWMTimer g_timer;
 ADCReader g_adc;
 PIDController g_pid(INITIAL_KP, INITIAL_KI, INITIAL_KD); // Initial PID gains
-SerialPort g_serial;
+AVRSerial g_serial;
 
 int main(void) {
     uint16_t current_setpoint = INITIAL_SETPOINT;

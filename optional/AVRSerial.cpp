@@ -1,8 +1,8 @@
-#include "SerialPort.hpp"
+#include "AVRSerial.hpp"
 #include <avr/io.h> // For USART registers and bit definitions
 #include <stdio.h>  // For sprintf/sscanf
 
-SerialPort::SerialPort() : m_bufferIndex(0) {
+AVRSerial::AVRSerial() : m_bufferIndex(0) {
 	// Configure UART0 baud rate (assuming F_CPU is defined in makefile)
     #define BAUD 9600
     #include <util/setbaud.h> // Helper to calculate UBRR values
@@ -15,7 +15,7 @@ SerialPort::SerialPort() : m_bufferIndex(0) {
     UCSR0C = _BV(UCSZ01) | _BV(UCSZ00);
 }
 
-void SerialPort::sendData(uint16_t setpoint, uint16_t measured, uint8_t output) {
+void AVRSerial::sendData(uint16_t setpoint, uint16_t measured, uint8_t output) {
     char buffer[64];
     // Format the string into a local buffer
     // Note: We use a simpler format "D,..." to make parsing easier on the PC side
@@ -28,7 +28,7 @@ void SerialPort::sendData(uint16_t setpoint, uint16_t measured, uint8_t output) 
     } 
 }
 
-void SerialPort::processIncomingData(PIDController& pid, uint16_t& setpoint) {
+void AVRSerial::processIncomingData(PIDController& pid, uint16_t& setpoint) {
     // 1. Check if data is available (Non-blocking!)
     if (UCSR0A & _BV(RXC0)) {
         char c = UDR0; // Read the character
@@ -47,7 +47,7 @@ void SerialPort::processIncomingData(PIDController& pid, uint16_t& setpoint) {
     }
 }
 
-void SerialPort::parseCommand(PIDController& pid, uint16_t& setpoint) {
+void AVRSerial::parseCommand(PIDController& pid, uint16_t& setpoint) {
     char type = m_buffer[0];
     double val_d;
     uint16_t val_u;
