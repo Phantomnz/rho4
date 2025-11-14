@@ -15,7 +15,6 @@ int main(void) {
     uint16_t measured_value = 0;
     uint8_t pwm_output = 0;
     g_serial.sendData(current_setpoint, measured_value, pwm_output); // Initial data send
-    printf("System initialized. Starting main loop...\n");
     for(;;) {
         g_serial.processIncomingData(g_pid, current_setpoint); // Check for new serial commands
         measured_value = g_adc.readADC(0); // Read the sensor value from ADC channel 0

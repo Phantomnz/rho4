@@ -1,0 +1,3 @@
+"C:\Program Files\CMake\bin\cmake.exe" -E rm -f CMakeFiles\dashboard.exe.dir/objects.a
+C:\msys64\ucrt64\bin\ar.exe qc CMakeFiles\dashboard.exe.dir/objects.a @CMakeFiles\dashboard.exe.dir\objects1.rsp
+C:\msys64\ucrt64\bin\g++.exe -g -Wl,--whole-archive CMakeFiles\dashboard.exe.dir/objects.a -Wl,--no-whole-archive -o dashboard.exe.exe -Wl,--out-implib,libdashboard.exe.dll.a -Wl,--major-image-version,0,--minor-image-version,0 @CMakeFiles\dashboard.exe.dir\linkLibs.rsp
