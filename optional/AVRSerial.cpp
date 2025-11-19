@@ -1,6 +1,8 @@
 #include "AVRSerial.hpp"
 #include <avr/io.h> // For USART registers and bit definitions
 #include <stdio.h>  // For sprintf/sscanf
+#include <stdlib.h> // Required for atoi and atof
+#include <avr/io.h> // Required for LED control (PORTB)
 
 AVRSerial::AVRSerial() : m_bufferIndex(0) {
 	// Configure UART0 baud rate (assuming F_CPU is defined in makefile)
@@ -29,8 +31,8 @@ void AVRSerial::sendData(uint16_t setpoint, uint16_t measured, uint8_t output) {
 }
 
 void AVRSerial::processIncomingData(PIDController& pid, uint16_t& setpoint) {
-    // 1. Check if data is available (Non-blocking!)
-    if (UCSR0A & _BV(RXC0)) {
+    // 1. Check if data is available (Non-blocking!), change to while to speed up processing
+    while(UCSR0A & _BV(RXC0)) {
         char c = UDR0; // Read the character
 
         // 2. Check for end of line
@@ -49,35 +51,29 @@ void AVRSerial::processIncomingData(PIDController& pid, uint16_t& setpoint) {
 
 void AVRSerial::parseCommand(PIDController& pid, uint16_t& setpoint) {
     char type = m_buffer[0];
-    double val_d;
-    uint16_t val_u;
+    
+    // Pointer to the number part of the string (skip the first char 'p', 's', etc.)
+    char* value_str = &m_buffer[1];
 
-    // Protocol: "p0.5", "i0.1", "d0.05", "s512"
+    // Visual Debug: Toggle LED (PB7) whenever a valid command is parsed
+    // If the LED flickers when you move a slider, the chip HEARS you.
+    PORTB ^= _BV(PB7); 
+
     if (type == 's') {
-        if (sscanf(&m_buffer[1], "%u", &val_u) == 1) {
-            setpoint = val_u;
-        }
+        // 'atoi' converts string to integer. much safer than sscanf.
+        setpoint = atoi(value_str); 
     } 
-    // Note: We need to use a temporary variable for gains because we can't
-    // get the current gains out of the PID controller easily without adding getters.
-    // A cleaner way is to just update the specific gain if your PID class supports it,
-    // Inside parseCommand...
     else if (type == 'p') {
-        if (sscanf(&m_buffer[1], "%lf", &val_d) == 1) {
-            // Use getters to keep the other values the same!
-            pid.setGains(val_d, pid.getKi(), pid.getKd());
-        }
+        // 'atof' converts string to float.
+        double val = atof(value_str);
+        pid.setGains(val, pid.getKi(), pid.getKd());
     }
     else if (type == 'i') {
-        if (sscanf(&m_buffer[1], "%lf", &val_d) == 1) {
-            pid.setGains(pid.getKp(), val_d, pid.getKd());
-        }
+        double val = atof(value_str);
+        pid.setGains(pid.getKp(), val, pid.getKd());
     }
     else if (type == 'd') {
-        if (sscanf(&m_buffer[1], "%lf", &val_d) == 1) {
-            pid.setGains(pid.getKp(), pid.getKi(), val_d);
-        }
+        double val = atof(value_str);
+        pid.setGains(pid.getKp(), pid.getKi(), val);
     }
-
 }
-

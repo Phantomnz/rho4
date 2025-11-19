@@ -4,6 +4,7 @@
 #include "AVRSerial.hpp"
 #include "PWMTimer.hpp"
 #include <util/delay.h>
+#include <avr/io.h>
 
 PWMTimer g_timer;
 ADCReader g_adc;
@@ -14,13 +15,37 @@ int main(void) {
     uint16_t current_setpoint = INITIAL_SETPOINT;
     uint16_t measured_value = 0;
     uint8_t pwm_output = 0;
-    g_serial.sendData(current_setpoint, measured_value, pwm_output); // Initial data send
+    
+    // A counter to slow down the sending of data
+    int send_counter = 0;
+
+    g_serial.sendData(current_setpoint, measured_value, pwm_output); 
+
     for(;;) {
-        g_serial.processIncomingData(g_pid, current_setpoint); // Check for new serial commands
-        measured_value = g_adc.readADC(0); // Read the sensor value from ADC channel 0
-        pwm_output =g_pid.update(current_setpoint, measured_value); // Update PID controller
-        g_timer.setDutyCycle(pwm_output); // Set PWM output based on PID
-        g_serial.sendData(current_setpoint, measured_value, pwm_output); // Send current data over serial back to GUI
-        _delay_ms(LOOP_TIME_MS); // Wait for the next loop iteration
+        DDRB |= _BV(PB7);  // Set PB7 as output for debug LED
+        // 1. ALWAYS check for new commands first
+        g_serial.processIncomingData(g_pid, current_setpoint); 
+
+        // 2. Run the Control Loop (Fast)
+        measured_value = g_adc.readADC(0);
+        pwm_output = g_pid.update(current_setpoint, measured_value);
+        g_timer.setDutyCycle(pwm_output);
+
+        // 3. Talk to PC (Slowly)
+        // Only send data every 10 loops (approx 100ms)
+        // This frees up the serial line so we can receive slider commands!
+        send_counter++;
+        if (send_counter >= 10) {
+            g_serial.sendData(current_setpoint, measured_value, pwm_output);
+            send_counter = 0;
+        }
+
+        // 4. Smart Sleep
+        // Instead of sleeping for 10ms straight, we sleep 10 x 1ms
+        // and check for serial commands in between.
+        for (int i = 0; i < LOOP_TIME_MS; i++) {
+            _delay_ms(1);
+            g_serial.processIncomingData(g_pid, current_setpoint);
+        }
     }
 }
