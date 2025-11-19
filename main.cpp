@@ -8,7 +8,8 @@
 // We need <string> for our status message and <stdio.h> for formatting commands
 #include <string> 
 #include <stdio.h> // For snprintf
-
+#define V_REF 3.3f
+#define ADC_MAX 1023
 
 // This makes the GUI look a bit more modern and clean.
 void StylePIDController() {
@@ -75,7 +76,11 @@ int main(int, char**) {
     float kp = 0.5f;   // INITIAL_KP
     float ki = 0.1f;   // INITIAL_KI
     float kd = 0.05f;  // INITIAL_KD
-    int setpoint = 512; // INITIAL_SETPOINT
+    float target_voltage = V_REF / 2.0f; // Start at 1.65V (midpoint of 3.3V)
+    int setpoint_adc = 512; // The 0-1023 value sent to the II Matto
+
+    int measured_value = 0; // Value read from ADC (0-1023)
+    int current_output = 0; // Current PWM output (0-255)
 
     // A buffer for formatting our serial commands
     char command_buffer[64];
@@ -152,16 +157,60 @@ int main(int, char**) {
         ImGui::Separator();
 
         // Setpoint Control Section
-        ImGui::Text("Setpoint (0-1023)");
+        ImGui::Text("Setpoint (%0.1fV - %0.1fV)", 0.0f, V_REF);
         
-        // Setpoint Slider
-        if (ImGui::SliderInt("##Setpoint", &setpoint, 0, 1023)) {
-            // Format the command (e.g., "s512\n")
-            snprintf(command_buffer, sizeof(command_buffer), "s%d\n", setpoint);
+        // Use a float slider for the user to select voltage
+        if (ImGui::SliderFloat("Target Voltage", &target_voltage, 0.0f, V_REF, "%.2f V")) {
+            // Clamp value (Safety check)
+            if (target_voltage < 0.0f) target_voltage = 0.0f;
+            if (target_voltage > V_REF) target_voltage = V_REF;
+            
+            // Convert voltage (float) to 10-bit ADC setpoint (int)
+            // Conversion: Setpoint = (Target Voltage / V_REF) * ADC_MAX
+            setpoint_adc = (int)((target_voltage / V_REF) * ADC_MAX);
+            
+            // Format and send the command (e.g., "s512\n")
+            snprintf(command_buffer, sizeof(command_buffer), "s%d\n", setpoint_adc);
             if (serial.isConnected()) {
                 serial.write(command_buffer);
             }
         }
+        // Display the corresponding ADC value for reference
+        ImGui::SameLine();
+        ImGui::Text("(ADC: %d)", setpoint_adc);
+
+
+        // ==========================================================
+        // LIVE DATA READING AND PARSING
+        // ==========================================================
+        if (serial.isConnected()) {
+            char read_buffer[64];
+            int bytesRead = serial.read(read_buffer, sizeof(read_buffer) - 1);
+
+            if (bytesRead > 0) {
+                read_buffer[bytesRead] = '\0';
+                int received_setpoint_temp;
+                
+                // Attempt to parse the packet: "D,<setpoint>,<measured>,<output>"
+                if (sscanf(read_buffer, "D,%u,%u,%u", 
+                           &received_setpoint_temp, &measured_value, &current_output) == 3) {
+                    // measured_value (0-1023) and current_output (0-255) are updated
+                }
+            }
+        }
+        
+        // ==========================================================
+        // LIVE DATA DISPLAY (Updated to show voltage)
+        // ==========================================================
+        ImGui::Separator();
+        ImGui::Text("LIVE DATA");
+        
+        // Display the measured ADC value and its calculated voltage equivalent
+        float measured_voltage = ((float)measured_value / ADC_MAX) * V_REF;
+        ImGui::Text("Measured Output (Vout): %.2f V", measured_voltage);
+        ImGui::Text("Measured ADC Value: %d / 1023", measured_value);
+        
+        ImGui::Text("PWM Output (Duty Cycle): %d / 255", current_output);
 
         ImGui::End(); // End the window
 
